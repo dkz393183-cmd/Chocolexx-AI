@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chocolexx AI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Chocolexx <span>AI</span></h1>
+        <nav>
+            <button onclick="mudarModo('Estudos')">Estudos</button>
+            <button onclick="mudarModo('Geral')">Geral</button>
+            <button onclick="mudarModo('Conversa')">Conversa</button>
+        </nav>
+    </header>
+
+    <main id="chat-container">
+        <div id="status-modo">Modo Atual: <strong>Geral</strong></div>
+        <div id="chat-window">
+            </div>
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="Digite sua pergunta...">
+            <button id="send-btn">Enviar</button>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>

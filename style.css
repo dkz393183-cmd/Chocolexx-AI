@@ -1,0 +1,126 @@
+/* Importando uma fonte moderna e profissional */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+* {
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    /* Fundo Gradiente Marrom e Preto mais suave */
+    background: radial-gradient(circle at center, #2b1700 0%, #000000 100%);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+h1 {
+    color: #d2691e;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+    text-shadow: 0px 4px 10px rgba(0,0,0,0.5);
+}
+
+/* CONTAINER: Mais largo para equilibrar o visual */
+#chat-container {
+    width: 95%;
+    max-width: 700px; /* Aumentei para ficar bem largo */
+    background: rgba(30, 20, 10, 0.8);
+    backdrop-filter: blur(10px);
+    padding: 25px;
+    border-radius: 20px;
+    border: 1px solid rgba(210, 105, 30, 0.3);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.8);
+    margin-top: 20px; /* Afasta dos botões lá no topo */
+}
+
+/* JANELA DE CHAT: Menos comprida e com mais respiro */
+#chat-window {
+    height: 320px; /* Reduzi a altura para não ficar tão esticado */
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 15px;
+    margin-top: 15px;
+    margin-bottom: 25px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+}
+
+#chat-window div {
+    max-width: 85%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+/* BOTÕES: Mais espaço abaixo deles */
+.buttons-modo {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-bottom: 35px; /* Espaço extra para não tocar no chat */
+}
+
+button {
+    padding: 10px 25px;
+    cursor: pointer;
+    border: 1px solid #d2691e;
+    background: transparent;
+    color: #d2691e;
+    border-radius: 50px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+button:hover {
+    background: #d2691e;
+    color: white;
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(210, 105, 30, 0.4);
+}
+
+/* Área de Input */
+.input-area {
+    display: flex;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 5px;
+    border-radius: 50px;
+    border: 1px solid rgba(210, 105, 30, 0.4);
+}
+
+input {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    background: transparent;
+    color: white;
+    outline: none;
+}
+
+#send-btn {
+    background: #d2691e;
+    color: white;
+    border: none;
+    padding: 10px 30px;
+    border-radius: 50px;
+    font-weight: 600;
+}
+
+/* Scrollbar */
+#chat-window::-webkit-scrollbar {
+    width: 5px;
+}
+#chat-window::-webkit-scrollbar-thumb {
+    background: #d2691e;
+    border-radius: 10px;
+}
