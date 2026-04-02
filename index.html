@@ -56,13 +56,9 @@
 
       <div class="input-area">
         <div class="input-wrapper">
-          <div id="imgPreview" class="img-preview hidden">
-            <img id="imgPreviewThumb" />
-            <button id="imgPreviewRemove" onclick="removeImagePreview()">✕</button>
-          </div>
           <input type="text" id="userInput" placeholder="Mensagem para Chocolexx AI..." onkeydown="if(event.key==='Enter') sendMessage()" />
         </div>
-        <button class="btn-img" onclick="generateImage()" title="Gerar imagem">🎨</button>
+        <button class="btn-img" id="btnGenImage" onclick="generateImage()" title="Gerar imagem">🎨</button>
         <button onclick="sendMessage()">➤</button>
       </div>
     </div>
@@ -71,7 +67,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, query, orderBy, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, query, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAz2HjRtlWBjFCx4146lZM5yt-Y1lJWUbw",
@@ -137,9 +133,10 @@
 
     async function openChat(chatId) {
       currentChatId = chatId;
-      const snap = await getDocs(query(collection(db, 'users', currentUser.uid, 'chats', chatId, 'messages'), orderBy('createdAt')));
+      const q = query(collection(db, 'users', currentUser.uid, 'chats', chatId, 'messages'), orderBy('createdAt'));
+      const snap = await getDocs(q);
       currentMessages = [];
-      snap.forEach(d => currentMessages.push(d.data()));
+      snap.forEach(d => currentMessages.push({role: d.data().role, content: d.data().content}));
       renderChatBox(currentMessages);
       loadChats();
     }
@@ -160,28 +157,12 @@
       if (welcome) welcome.remove();
       const div = document.createElement('div');
       div.className = `message ${role === 'user' ? 'user' : 'bot'}`;
-      div.innerHTML = `<div class="bubble">${text.replace(/\n/g, '<br/>')}</div>`;
+      div.innerHTML = `<div class="bubble">${text}</div>`;
       box.appendChild(div);
       box.scrollTop = box.scrollHeight;
     }
 
-    function addTyping() {
-      const box = document.getElementById('chatBox');
-      const id = 'typing-' + Date.now();
-      const div = document.createElement('div');
-      div.className = 'message bot typing';
-      div.id = id;
-      div.innerHTML = `<div class="bubble">digitando...</div>`;
-      box.appendChild(div);
-      box.scrollTop = box.scrollHeight;
-      return id;
-    }
-
-    function removeTyping(id) {
-      const el = document.getElementById(id);
-      if (el) el.remove();
-    }
-
+    // FUNÇÃO PARA ENVIAR TEXTO (GROQ)
     window.sendMessage = async function() {
       const input = document.getElementById('userInput');
       const text = input.value.trim();
@@ -189,6 +170,12 @@
       
       input.value = '';
       if (!currentChatId) await newChat();
+
+      // Detecta se o usuário digitou "gera imagem" por texto
+      const imageKeywords = /^(gere|gera|crie|cria|desenhe|desenha|faça|faz|make|generate|draw|create).*imagem/i;
+      if (imageKeywords.test(text)) {
+          return window.generateImage(text);
+      }
 
       await addDoc(collection(db, 'users', currentUser.uid, 'chats', currentChatId, 'messages'), {
         role: 'user', content: text, createdAt: Date.now()
@@ -199,7 +186,7 @@
       const typingId = addTyping();
 
       try {
-        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        const res = await fetch('https://corsproxy.io/?https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json', 
@@ -210,6 +197,7 @@
             messages: [{ role: 'system', content: window.currentSystemPrompt }, ...currentMessages] 
           })
         });
+        
         const data = await res.json();
         removeTyping(typingId);
 
@@ -223,23 +211,54 @@
         }
       } catch(e) {
         removeTyping(typingId);
-        appendBubble('bot', 'Erro ao conectar. A escola pode estar bloqueando a API.');
+        appendBubble('bot', 'Erro na rede da escola. Tente novamente.');
       }
     };
 
-    window.generateImage = function() {
+    // FUNÇÃO PARA GERAR IMAGEM (POLLINATIONS)
+    window.generateImage = async function(customText) {
       const input = document.getElementById('userInput');
-      const text = input.value.trim();
-      if (!text) return;
+      const text = customText || input.value.trim();
+      if (!text || !currentUser) return;
+      
       input.value = '';
-      appendBubble('user', `Gerando imagem: ${text}`);
+      if (!currentChatId) await newChat();
+
+      appendBubble('user', `🎨 Gerando arte para: ${text}`);
       const typingId = addTyping();
+
+      // Pollinations cria a imagem direto pela URL
       const imgUrl = `https://pollinations.ai/p/${encodeURIComponent(text)}?width=512&height=512&nologo=true`;
-      setTimeout(() => {
+      
+      const imgHtml = `<img src="${imgUrl}" style="max-width:100%; border-radius:12px; margin-top:10px; border: 2px solid #5c2d0e;">`;
+
+      // Simula um tempo de carregamento
+      setTimeout(async () => {
         removeTyping(typingId);
-        appendBubble('bot', `<img src="${imgUrl}" style="max-width:100%; border-radius:12px;">`);
-      }, 2000);
+        appendBubble('bot', `Aqui está sua arte:<br>${imgHtml}`);
+        
+        // Salva no Firebase como uma mensagem da assistente
+        await addDoc(collection(db, 'users', currentUser.uid, 'chats', currentChatId, 'messages'), {
+          role: 'assistant', content: imgHtml, createdAt: Date.now()
+        });
+      }, 2500);
     };
+
+    function addTyping() {
+      const box = document.getElementById('chatBox');
+      const id = 'typing-' + Date.now();
+      const div = document.createElement('div');
+      div.className = 'message bot typing';
+      div.id = id;
+      div.innerHTML = `<div class="bubble">...</div>`;
+      box.appendChild(div);
+      return id;
+    }
+
+    function removeTyping(id) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    }
 
     // CONTEXT MENU
     let ctxChatId = null;
