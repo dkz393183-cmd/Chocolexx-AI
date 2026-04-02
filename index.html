@@ -58,7 +58,7 @@
         <div class="input-wrapper">
           <input type="text" id="userInput" placeholder="Mensagem para Chocolexx AI..." onkeydown="if(event.key==='Enter') sendMessage()" />
         </div>
-        <button class="btn-img" onclick="generateImage()" title="Gerar imagem">🎨</button>
+        <button class="btn-img" id="btnGenImage" onclick="generateImage()" title="Gerar imagem">🎨</button>
         <button onclick="sendMessage()">➤</button>
       </div>
     </div>
@@ -157,6 +157,7 @@
       if (welcome) welcome.remove();
       const div = document.createElement('div');
       div.className = `message ${role === 'user' ? 'user' : 'bot'}`;
+      // Usamos .innerHTML para renderizar as imagens em Base64
       div.innerHTML = `<div class="bubble">${text}</div>`;
       box.appendChild(div);
       box.scrollTop = box.scrollHeight;
@@ -170,7 +171,6 @@
       input.value = '';
       if (!currentChatId) await newChat();
 
-      // Detecta se quer imagem por texto
       const imageKeywords = /^(gere|gera|crie|cria|desenhe|desenha|faça|faz|make|generate|draw|create).*imagem/i;
       if (imageKeywords.test(text)) {
           return window.generateImage(text);
@@ -210,10 +210,11 @@
         }
       } catch(e) {
         removeTyping(typingId);
-        appendBubble('bot', 'Aguardando liberação da chave do Google ou erro de rede escolar.');
+        appendBubble('bot', 'Erro na rede da escola. O Wi-Fi pode estar instável.');
       }
     };
 
+    // FUNÇÃO DE GERAR IMAGEM BLINDADA (Base64)
     window.generateImage = async function(customText) {
       const input = document.getElementById('userInput');
       const text = customText || input.value.trim();
@@ -227,16 +228,34 @@
 
       const seed = Math.floor(Math.random() * 1000);
       const imgUrl = `https://pollinations.ai/p/${encodeURIComponent(text)}?width=512&height=512&nologo=true&seed=${seed}`;
-      const imgHtml = `<img src="${imgUrl}" alt="Arte: ${text}" style="max-width:100%; border-radius:12px; margin-top:10px; border: 2px solid #5c2d0e;" onerror="this.src='https://via.placeholder.com/512?text=Erro+ao+carregar+imagem'">`;
 
-      setTimeout(async () => {
-        removeTyping(typingId);
-        appendBubble('bot', `Aqui está sua arte:<br>${imgHtml}`);
-        
-        await addDoc(collection(db, 'users', currentUser.uid, 'chats', currentChatId, 'messages'), {
-          role: 'assistant', content: imgHtml, createdAt: Date.now()
-        });
-      }, 2500);
+      try {
+          // 1. Pegamos a imagem como um "blob" (dados puros)
+          const imageRes = await fetch(imgUrl);
+          const imageBlob = await imageRes.blob();
+
+          // 2. Convertemos o blob para Base64 (texto puro que o Chrome aceita)
+          const reader = new FileReader();
+          reader.onloadend = async function() {
+              const base64data = reader.result; // data:image/png;base64,...
+              
+              const imgHtml = `<img src="${base64data}" alt="Arte: ${text}" style="max-width:100%; border-radius:12px; margin-top:10px; border: 2px solid #5c2d0e;">`;
+              
+              removeTyping(typingId);
+              appendBubble('bot', `Aqui está sua arte:<br>${imgHtml}`);
+              
+              // Salva no Firebase já em Base64 para carregar rápido depois
+              await addDoc(collection(db, 'users', currentUser.uid, 'chats', currentChatId, 'messages'), {
+                  role: 'assistant', content: imgHtml, createdAt: Date.now()
+              });
+          }
+          reader.readAsDataURL(imageBlob);
+
+      } catch(e) {
+          removeTyping(typingId);
+          // Adicionamos um aviso específico para o bloqueio da escola
+          appendBubble('bot', `Erro ao gerar imagem: O Wi-Fi da escola pode estar bloqueando o gerador ou a conexão falhou.`);
+      }
     };
 
     function addTyping() {
