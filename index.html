@@ -58,7 +58,7 @@
         <div class="input-wrapper">
           <input type="text" id="userInput" placeholder="Mensagem para Chocolexx AI..." onkeydown="if(event.key==='Enter') sendMessage()" />
         </div>
-        <button class="btn-img" id="btnGenImage" onclick="generateImage()" title="Gerar imagem">🎨</button>
+        <button class="btn-img" onclick="generateImage()" title="Gerar imagem">🎨</button>
         <button onclick="sendMessage()">➤</button>
       </div>
     </div>
@@ -162,7 +162,6 @@
       box.scrollTop = box.scrollHeight;
     }
 
-    // FUNÇÃO PARA ENVIAR TEXTO (GROQ)
     window.sendMessage = async function() {
       const input = document.getElementById('userInput');
       const text = input.value.trim();
@@ -171,7 +170,7 @@
       input.value = '';
       if (!currentChatId) await newChat();
 
-      // Detecta se o usuário digitou "gera imagem" por texto
+      // Detecta se quer imagem por texto
       const imageKeywords = /^(gere|gera|crie|cria|desenhe|desenha|faça|faz|make|generate|draw|create).*imagem/i;
       if (imageKeywords.test(text)) {
           return window.generateImage(text);
@@ -211,11 +210,10 @@
         }
       } catch(e) {
         removeTyping(typingId);
-        appendBubble('bot', 'Erro na rede da escola. Tente novamente.');
+        appendBubble('bot', 'Aguardando liberação da chave do Google ou erro de rede escolar.');
       }
     };
 
-    // FUNÇÃO PARA GERAR IMAGEM (POLLINATIONS)
     window.generateImage = async function(customText) {
       const input = document.getElementById('userInput');
       const text = customText || input.value.trim();
@@ -227,17 +225,14 @@
       appendBubble('user', `🎨 Gerando arte para: ${text}`);
       const typingId = addTyping();
 
-      // Pollinations cria a imagem direto pela URL
-      const imgUrl = `https://pollinations.ai/p/${encodeURIComponent(text)}?width=512&height=512&nologo=true`;
-      
-      const imgHtml = `<img src="${imgUrl}" style="max-width:100%; border-radius:12px; margin-top:10px; border: 2px solid #5c2d0e;">`;
+      const seed = Math.floor(Math.random() * 1000);
+      const imgUrl = `https://pollinations.ai/p/${encodeURIComponent(text)}?width=512&height=512&nologo=true&seed=${seed}`;
+      const imgHtml = `<img src="${imgUrl}" alt="Arte: ${text}" style="max-width:100%; border-radius:12px; margin-top:10px; border: 2px solid #5c2d0e;" onerror="this.src='https://via.placeholder.com/512?text=Erro+ao+carregar+imagem'">`;
 
-      // Simula um tempo de carregamento
       setTimeout(async () => {
         removeTyping(typingId);
         appendBubble('bot', `Aqui está sua arte:<br>${imgHtml}`);
         
-        // Salva no Firebase como uma mensagem da assistente
         await addDoc(collection(db, 'users', currentUser.uid, 'chats', currentChatId, 'messages'), {
           role: 'assistant', content: imgHtml, createdAt: Date.now()
         });
@@ -264,17 +259,6 @@
     let ctxChatId = null;
     const ctxMenu = document.getElementById('contextMenu');
     document.addEventListener('click', () => ctxMenu.classList.add('hidden'));
-    document.getElementById('ctxRename').onclick = async () => {
-      const n = prompt('Novo nome:');
-      if(n) {
-        await updateDoc(doc(db, 'users', currentUser.uid, 'chats', ctxChatId), {title: n});
-        loadChats();
-      }
-    };
-    document.getElementById('ctxDelete').onclick = async () => {
-      await deleteDoc(doc(db, 'users', currentUser.uid, 'chats', ctxChatId));
-      loadChats();
-    };
     function showContextMenu(e, id) {
       e.preventDefault();
       ctxChatId = id;
@@ -282,6 +266,13 @@
       ctxMenu.style.top = e.pageY + 'px';
       ctxMenu.classList.remove('hidden');
     }
+    document.getElementById('ctxRename').onclick = async () => {
+      const n = prompt('Novo nome:');
+      if(n) { await updateDoc(doc(db, 'users', currentUser.uid, 'chats', ctxChatId), {title: n}); loadChats(); }
+    };
+    document.getElementById('ctxDelete').onclick = async () => {
+      await deleteDoc(doc(db, 'users', currentUser.uid, 'chats', ctxChatId)); loadChats();
+    };
   </script>
   <script src="script.js"></script>
 </body>
