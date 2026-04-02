@@ -1,77 +1,95 @@
-const API_KEY = "AIzaSyBO8LVpBpbS-YFwKJ2CrtKl4__gKSKF-XE"; 
-let modoAtual = "Geral";
+const API_KEY = 'AIzaSyD6hyyizLOPTJHvl8ONs30t-b6-tyzkp6c';
+const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
 
-// Função para mudar o modo (Estudos, Geral, Conversa)
-function mudarModo(novoModo) {
-    modoAtual = novoModo;
-    document.getElementById('status-modo').innerHTML = `Modo Atual: <strong>${novoModo}</strong>`;
-    adicionarMensagem("Sistema", `Você entrou no modo ${novoModo}. Como posso ajudar?`);
+let currentMode = 'geral';
+
+const modeLabels = {
+  geral: 'Geral',
+  estudos: 'Estudos 📚',
+  conversa: 'Conversa 💬'
+};
+
+const modeSystemPrompts = {
+  geral: 'Você é a Chocolexx AI, uma inteligência artificial com tema de chocolate. Responda de forma útil e geral. Seja simpático e use emojis de chocolate ocasionalmente.',
+  estudos: 'Você é a Chocolexx AI no modo Estudos. Ajude o usuário a aprender e estudar conteúdos de forma clara, didática e detalhada. Use exemplos quando possível.',
+  conversa: 'Você é a Chocolexx AI no modo Conversa. Bata papo de forma descontraída, divertida e amigável com o usuário. Seja informal e animado.'
+};
+
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+  document.getElementById('modeLabel').textContent = `Modo: ${modeLabels[mode]}`;
+  addMessage('bot', `Modo <strong>${modeLabels[mode]}</strong> ativado! Como posso ajudar? 🍫`);
 }
 
-// Eventos de clique e tecla Enter
-document.getElementById('send-btn').addEventListener('click', enviarMensagem);
+async function sendMessage() {
+  const input = document.getElementById('userInput');
+  const text = input.value.trim();
+  if (!text) return;
 
-document.getElementById('user-input').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') enviarMensagem();
-});
+  addMessage('user', text);
+  input.value = '';
 
-async function enviarMensagem() {
-    const input = document.getElementById('user-input');
-    const texto = input.value;
+  const typingId = addTyping();
 
-    if (texto.trim() !== "") {
-        adicionarMensagem("Você", texto);
-        input.value = "";
-        
-        const respostaIA = await buscarRespostaIA(texto);
-        adicionarMensagem("Chocolexx AI", respostaIA);
-    }
-}
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: modeSystemPrompts[currentMode] + '\n\nUsuário: ' + text }
+            ]
+          }
+        ]
+      })
+    });
 
-function adicionarMensagem(autor, texto) {
-    const chatWindow = document.getElementById('chat-window');
-    const msgDiv = document.createElement('div');
-    msgDiv.style.marginBottom = "15px";
-    
-    if (autor === "Você") {
-        msgDiv.innerHTML = `<span style="color: #d2691e;"><strong>${autor}:</strong></span> ${texto}`;
+    const data = await response.json();
+    removeTyping(typingId);
+
+    if (data.candidates && data.candidates[0]) {
+      const reply = data.candidates[0].content.parts[0].text;
+      addMessage('bot', reply.replace(/\n/g, '<br/>'));
     } else {
-        msgDiv.innerHTML = `<span style="color: #f3e5ab;"><strong>${autor}:</strong></span> ${texto}`;
+      console.error('Resposta inesperada da API:', JSON.stringify(data));
+      const errMsg = data.error ? data.error.message : 'Resposta inválida da API.';
+      addMessage('bot', `Erro: ${errMsg} 🍫`);
     }
-    
-    chatWindow.appendChild(msgDiv);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
+  } catch (err) {
+    removeTyping(typingId);
+    console.error('Erro na requisição:', err);
+    addMessage('bot', 'Erro ao conectar com a API. Verifique sua conexão. 🍫');
+  }
 }
 
-// CONEXÃO COM GOOGLE GEMINI (Versão Especial para Escola)
-async function buscarRespostaIA(pergunta) {
-    let instrucao = `Você é a Chocolexx AI. Responda de forma curta no modo ${modoAtual}. `;
-    
-    // O timestamp (?t=...) engana o bloqueio de cache do Chromebook
-    const timestamp = new Date().getTime();
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}&t=${timestamp}`;
+function addMessage(sender, text) {
+  const chatBox = document.getElementById('chatBox');
+  const div = document.createElement('div');
+  div.className = `message ${sender}`;
+  const avatar = sender === 'bot' ? '🍫' : '🧑';
+  div.innerHTML = `<span class="avatar">${avatar}</span><div class="bubble">${text}</div>`;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
 
-    try {
-        const response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: instrucao + pergunta }] }]
-            })
-        });
+function addTyping() {
+  const chatBox = document.getElementById('chatBox');
+  const id = 'typing-' + Date.now();
+  const div = document.createElement('div');
+  div.className = 'message bot typing';
+  div.id = id;
+  div.innerHTML = `<span class="avatar">🍫</span><div class="bubble">digitando...</div>`;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+  return id;
+}
 
-        const data = await response.json();
-        
-        if (data.candidates && data.candidates[0].content) {
-            return data.candidates[0].content.parts[0].text;
-        } else if (data.error) {
-            console.error("Erro detectado:", data.error.message);
-            return "O Google ainda está processando a chave. Tente novamente em 2 minutos!";
-        }
-        
-        return "Tive um erro interno. Pode perguntar de novo?";
-        
-    } catch (error) {
-        return "Erro de conexão. O Wi-Fi da escola pode estar bloqueando o site.";
-    }
+function removeTyping(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
 }

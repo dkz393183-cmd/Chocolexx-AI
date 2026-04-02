@@ -1,34 +1,53 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chocolexx AI</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍫</text></svg>">
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chocolexx AI</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div class="container">
+    <header>
+      <div class="logo">
+        <span class="choco-icon">🍫</span>
+        <h1>Chocolexx <span>AI</span></h1>
+      </div>
+      <p class="tagline">Sua inteligência artificial com sabor especial</p>
+    </header>
 
-    <h1>Chocolexx AI</h1>
-
-    <div class="buttons-modo">
-        <button onclick="mudarModo('Estudos')">Estudos</button>
-        <button onclick="mudarModo('Geral')">Geral</button>
-        <button onclick="mudarModo('Conversa')">Conversa</button>
+    <div class="mode-buttons">
+      <button class="mode-btn active" data-mode="geral" onclick="setMode('geral')">
+        🌐 Geral
+      </button>
+      <button class="mode-btn" data-mode="estudos" onclick="setMode('estudos')">
+        📚 Estudos
+      </button>
+      <button class="mode-btn" data-mode="conversa" onclick="setMode('conversa')">
+        💬 Conversa
+      </button>
     </div>
 
-    <div id="chat-container">
-        <p id="status-modo">Modo Atual: <strong>Geral</strong></p>
-        
-        <div id="chat-window">
-            </div>
+    <div class="mode-label" id="modeLabel">Modo: Geral</div>
 
-        <div class="input-area">
-            <input type="text" id="user-input" placeholder="Digite sua pergunta...">
-            <button id="send-btn">Enviar</button>
-        </div>
+    <div class="chat-box" id="chatBox">
+      <div class="message bot">
+        <span class="avatar">🍫</span>
+        <div class="bubble">Olá! Sou a <strong>Chocolexx AI</strong>. Como posso te ajudar hoje?</div>
+      </div>
     </div>
 
-    <script src="script.js"></script>
+    <div class="input-area">
+      <input
+        type="text"
+        id="userInput"
+        placeholder="Digite sua mensagem..."
+        onkeydown="if(event.key==='Enter') sendMessage()"
+      />
+      <button onclick="sendMessage()">Enviar ➤</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
