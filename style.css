@@ -291,4 +291,79 @@ body {
   transition: background 0.2s;
 }
 
+.btn-img {
+  padding: 14px 16px;
+  background: #3b1a08;
+  color: #f5deb3;
+  border: 1px solid #5c2d0e;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
 .input-area button:hover { background: #e8b820; }
+
+/* CONTEXT MENU */
+.context-menu {
+  position: fixed;
+  background: #2a1005;
+  border: 1px solid #5c2d0e;
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 1000;
+  min-width: 150px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+
+.context-menu div {
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #f5deb3;
+  transition: background 0.15s;
+}
+
+.context-menu div:hover { background: #5c2d0e; }
+
+/* INPUT WRAPPER */
+.input-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.img-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #2a1005;
+  border: 1px solid #5c2d0e;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.img-preview img {
+  height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.img-preview button {
+  background: none;
+  border: none;
+  color: #c8956c;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0 4px;
+}
+
+.img-preview button:hover { color: #f5deb3; }
+
+.bubble img {
+  opacity: 1;
+  transition: opacity 0.4s;
+  background: #3b1a08;
+  min-height: 60px;
+}

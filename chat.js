@@ -1,7 +1,8 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { messages, systemPrompt } = req.body;
+  const { messages, systemPrompt, model } = req.body;
+  const selectedModel = model || 'llama-3.3-70b-versatile';
 
   try {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -11,7 +12,7 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${process.env.GROQ_KEY}`
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: selectedModel,
         messages: [
           { role: 'system', content: systemPrompt },
           ...messages
