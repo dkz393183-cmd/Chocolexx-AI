@@ -7,46 +7,241 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="container">
-    <header>
-      <div class="logo">
-        <span class="choco-icon">🍫</span>
-        <h1>Chocolexx <span>AI</span></h1>
-      </div>
-      <p class="tagline">Sua inteligência artificial com sabor especial</p>
-    </header>
 
-    <div class="mode-buttons">
-      <button class="mode-btn active" data-mode="geral" onclick="setMode('geral')">
-        🌐 Geral
+  <!-- TELA DE LOGIN -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-box">
+      <div class="login-logo">🍫 <span>Chocolexx AI</span></div>
+      <p>Entre para começar a conversar</p>
+      <button id="googleLoginBtn" class="btn-google">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20"/> Entrar com Google
       </button>
-      <button class="mode-btn" data-mode="estudos" onclick="setMode('estudos')">
-        📚 Estudos
-      </button>
-      <button class="mode-btn" data-mode="conversa" onclick="setMode('conversa')">
-        💬 Conversa
-      </button>
-    </div>
-
-    <div class="mode-label" id="modeLabel">Modo: Geral</div>
-
-    <div class="chat-box" id="chatBox">
-      <div class="message bot">
-        <span class="avatar">🍫</span>
-        <div class="bubble">Olá! Sou a <strong>Chocolexx AI</strong>. Como posso te ajudar hoje?</div>
-      </div>
-    </div>
-
-    <div class="input-area">
-      <input
-        type="text"
-        id="userInput"
-        placeholder="Digite sua mensagem..."
-        onkeydown="if(event.key==='Enter') sendMessage()"
-      />
-      <button onclick="sendMessage()">Enviar ➤</button>
     </div>
   </div>
+
+  <!-- APP PRINCIPAL -->
+  <div id="appScreen" class="app-screen hidden">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <span class="logo-small">🍫 Chocolexx AI</span>
+        <button id="newChatBtn" class="btn-new-chat">+ Novo chat</button>
+      </div>
+      <div class="chat-list" id="chatList"></div>
+      <div class="sidebar-footer">
+        <img id="userAvatar" src="" width="32" height="32" />
+        <span id="userName"></span>
+        <button id="logoutBtn" class="btn-logout">Sair</button>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="top-bar">
+        <div class="mode-buttons">
+          <button class="mode-btn active" data-mode="geral" onclick="setMode('geral')">🌐 Geral</button>
+          <button class="mode-btn" data-mode="estudos" onclick="setMode('estudos')">📚 Estudos</button>
+          <button class="mode-btn" data-mode="conversa" onclick="setMode('conversa')">💬 Conversa</button>
+        </div>
+      </div>
+
+      <div class="chat-box" id="chatBox">
+        <div class="welcome">
+          <div class="welcome-logo">🍫</div>
+          <h2>Como posso te ajudar?</h2>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <input type="text" id="userInput" placeholder="Mensagem para Chocolexx AI..." onkeydown="if(event.key==='Enter') sendMessage()" />
+        <button onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FIREBASE CDN -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAz2HjRtlWBjFCx4146lZM5yt-Y1lJWUbw",
+      authDomain: "chocolexx-ai.firebaseapp.com",
+      projectId: "chocolexx-ai",
+      storageBucket: "chocolexx-ai.firebasestorage.app",
+      messagingSenderId: "196073489923",
+      appId: "1:196073489923:web:2fc5f45bf2f5cb952ff036"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    let currentUser = null;
+    let currentChatId = null;
+    let currentMessages = [];
+
+    // AUTH STATE
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        currentUser = user;
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('appScreen').classList.remove('hidden');
+        document.getElementById('userName').textContent = user.displayName;
+        document.getElementById('userAvatar').src = user.photoURL;
+        loadChats();
+      } else {
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('appScreen').classList.add('hidden');
+      }
+    });
+
+    // LOGIN
+    document.getElementById('googleLoginBtn').onclick = () => {
+      signInWithPopup(auth, provider).catch(err => console.error(err));
+    };
+
+    // LOGOUT
+    document.getElementById('logoutBtn').onclick = () => {
+      signOut(auth);
+    };
+
+    // NOVO CHAT
+    document.getElementById('newChatBtn').onclick = () => newChat();
+
+    async function newChat() {
+      if (!currentUser) return;
+      const ref = await addDoc(collection(db, 'users', currentUser.uid, 'chats'), {
+        title: 'Novo chat',
+        createdAt: Date.now()
+      });
+      currentChatId = ref.id;
+      currentMessages = [];
+      renderChatBox([]);
+      loadChats();
+    }
+
+    async function loadChats() {
+      const q = query(collection(db, 'users', currentUser.uid, 'chats'), orderBy('createdAt', 'desc'));
+      const snap = await getDocs(q);
+      const list = document.getElementById('chatList');
+      list.innerHTML = '';
+      snap.forEach(d => {
+        const div = document.createElement('div');
+        div.className = 'chat-item' + (d.id === currentChatId ? ' active' : '');
+        div.textContent = d.data().title;
+        div.onclick = () => openChat(d.id);
+        list.appendChild(div);
+      });
+    }
+
+    async function openChat(chatId) {
+      currentChatId = chatId;
+      const snap = await getDocs(query(collection(db, 'users', currentUser.uid, 'chats', chatId, 'messages'), orderBy('createdAt')));
+      currentMessages = [];
+      snap.forEach(d => currentMessages.push(d.data()));
+      renderChatBox(currentMessages);
+      loadChats();
+    }
+
+    function renderChatBox(messages) {
+      const box = document.getElementById('chatBox');
+      box.innerHTML = '';
+      if (messages.length === 0) {
+        box.innerHTML = '<div class="welcome"><div class="welcome-logo">🍫</div><h2>Como posso te ajudar?</h2></div>';
+        return;
+      }
+      messages.forEach(m => appendBubble(m.role, m.content));
+    }
+
+    function appendBubble(role, text) {
+      const box = document.getElementById('chatBox');
+      const welcome = box.querySelector('.welcome');
+      if (welcome) welcome.remove();
+      const div = document.createElement('div');
+      div.className = `message ${role === 'user' ? 'user' : 'bot'}`;
+      div.innerHTML = `<div class="bubble">${text.replace(/\n/g, '<br/>')}</div>`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // SEND MESSAGE — exposto globalmente
+    window.sendMessage = async function() {
+      const input = document.getElementById('userInput');
+      const text = input.value.trim();
+      if (!text || !currentUser) return;
+      input.value = '';
+
+      if (!currentChatId) await newChat();
+
+      // salva mensagem do user
+      await addDoc(collection(db, 'users', currentUser.uid, 'chats', currentChatId, 'messages'), {
+        role: 'user', content: text, createdAt: Date.now()
+      });
+      currentMessages.push({ role: 'user', content: text });
+      appendBubble('user', text);
+
+      // atualiza título do chat com a primeira mensagem
+      if (currentMessages.filter(m => m.role === 'user').length === 1) {
+        await updateDoc(doc(db, 'users', currentUser.uid, 'chats', currentChatId), {
+          title: text.slice(0, 40)
+        });
+        loadChats();
+      }
+
+      // typing
+      const typingId = addTyping();
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemPrompt: window.currentSystemPrompt,
+            messages: currentMessages
+          })
+        });
+        const data = await res.json();
+        removeTyping(typingId);
+
+        if (data.choices && data.choices[0]) {
+          const reply = data.choices[0].message.content;
+          await addDoc(collection(db, 'users', currentUser.uid, 'chats', currentChatId, 'messages'), {
+            role: 'assistant', content: reply, createdAt: Date.now()
+          });
+          currentMessages.push({ role: 'assistant', content: reply });
+          appendBubble('bot', reply);
+        } else {
+          removeTyping(typingId);
+          appendBubble('bot', 'Erro: ' + (data.error?.message || 'Resposta inválida.'));
+        }
+      } catch(e) {
+        removeTyping(typingId);
+        appendBubble('bot', 'Erro ao conectar com a API.');
+      }
+    };
+
+    function addTyping() {
+      const box = document.getElementById('chatBox');
+      const id = 'typing-' + Date.now();
+      const div = document.createElement('div');
+      div.className = 'message bot typing';
+      div.id = id;
+      div.innerHTML = `<div class="bubble">digitando...</div>`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+      return id;
+    }
+
+    function removeTyping(id) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    }
+  </script>
 
   <script src="script.js"></script>
 </body>
