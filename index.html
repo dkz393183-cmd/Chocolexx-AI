@@ -4,17 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Chocolexx AI</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍫</text></svg>">
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <!-- CONTEXT MENU -->
   <div id="contextMenu" class="context-menu hidden">
     <div id="ctxRename">✏️ Renomear</div>
     <div id="ctxDelete">🗑️ Deletar</div>
   </div>
 
-  <!-- TELA DE LOGIN -->
   <div id="loginScreen" class="login-screen">
     <div class="login-box">
       <div class="login-logo">🍫 <span>Chocolexx AI</span></div>
@@ -25,10 +24,7 @@
     </div>
   </div>
 
-  <!-- APP PRINCIPAL -->
   <div id="appScreen" class="app-screen hidden">
-
-    <!-- SIDEBAR -->
     <div class="sidebar">
       <div class="sidebar-header">
         <span class="logo-small">🍫 Chocolexx AI</span>
@@ -42,7 +38,6 @@
       </div>
     </div>
 
-    <!-- MAIN -->
     <div class="main">
       <div class="top-bar">
         <div class="mode-buttons">
@@ -71,16 +66,13 @@
         <button onclick="sendMessage()">➤</button>
       </div>
     </div>
-
   </div>
 
-  <!-- FIREBASE CDN -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, query, orderBy, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    const GROQ_KEY = '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';
     const firebaseConfig = {
       apiKey: "AIzaSyAz2HjRtlWBjFCx4146lZM5yt-Y1lJWUbw",
       authDomain: "chocolexx-ai.firebaseapp.com",
@@ -99,7 +91,6 @@
     let currentChatId = null;
     let currentMessages = [];
 
-    // AUTH STATE
     onAuthStateChanged(auth, user => {
       if (user) {
         currentUser = user;
@@ -114,21 +105,11 @@
       }
     });
 
-    // LOGIN
-    document.getElementById('googleLoginBtn').onclick = () => {
-      signInWithPopup(auth, provider).catch(err => console.error(err));
-    };
-
-    // LOGOUT
-    document.getElementById('logoutBtn').onclick = () => {
-      signOut(auth);
-    };
-
-    // NOVO CHAT
+    document.getElementById('googleLoginBtn').onclick = () => signInWithPopup(auth, provider);
+    document.getElementById('logoutBtn').onclick = () => signOut(auth);
     document.getElementById('newChatBtn').onclick = () => newChat();
 
     async function newChat() {
-      if (!currentUser) return;
       const ref = await addDoc(collection(db, 'users', currentUser.uid, 'chats'), {
         title: 'Novo chat',
         createdAt: Date.now()
@@ -184,163 +165,6 @@
       box.scrollTop = box.scrollHeight;
     }
 
-    // PASTE IMAGE
-    let pastedImageBase64 = null;
-
-    document.addEventListener('paste', (e) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (const item of items) {
-        if (item.type.startsWith('image/')) {
-          const file = item.getAsFile();
-          const reader = new FileReader();
-          reader.onload = (ev) => {
-            pastedImageBase64 = ev.target.result; // data:image/png;base64,...
-            document.getElementById('imgPreviewThumb').src = pastedImageBase64;
-            document.getElementById('imgPreview').classList.remove('hidden');
-          };
-          reader.readAsDataURL(file);
-          break;
-        }
-      }
-    });
-
-    window.removeImagePreview = function() {
-      pastedImageBase64 = null;
-      document.getElementById('imgPreview').classList.add('hidden');
-      document.getElementById('imgPreviewThumb').src = '';
-    };
-
-    // SEND MESSAGE — exposto globalmente
-    window.sendMessage = async function() {
-      const input = document.getElementById('userInput');
-      const text = input.value.trim();
-      if (!text && !pastedImageBase64) return;
-      if (!currentUser) return;
-
-      // detecta se é pedido de imagem
-      const imageKeywords = /^(gere|gera|crie|cria|desenhe|desenha|faça|faz|make|generate|draw|create).*imagem|.*imagem.*(gere|gera|crie|cria|desenhe|faça)/i;
-      if (!pastedImageBase64 && imageKeywords.test(text)) {
-        return window.generateImage();
-      }
-      input.value = '';
-
-      if (!currentChatId) await newChat();
-
-      const hasImage = !!pastedImageBase64;
-      const imageData = pastedImageBase64;
-      if (hasImage) removeImagePreview();
-
-      // monta conteúdo da mensagem do user
-      const userContent = hasImage
-        ? [
-            ...(text ? [{ type: 'text', text }] : [{ type: 'text', text: 'O que tem nessa imagem?' }]),
-            { type: 'image_url', image_url: { url: imageData } }
-          ]
-        : text;
-
-      const displayText = hasImage
-        ? `${text || 'O que tem nessa imagem?'}<br/><img src="${imageData}" style="max-width:200px;border-radius:8px;margin-top:8px;" />`
-        : text;
-
-      await addDoc(collection(db, 'users', currentUser.uid, 'chats', currentChatId, 'messages'), {
-        role: 'user', content: typeof userContent === 'string' ? userContent : JSON.stringify(userContent), createdAt: Date.now()
-      });
-      currentMessages.push({ role: 'user', content: userContent });
-      appendBubble('user', displayText);
-
-      if (currentMessages.filter(m => m.role === 'user').length === 1) {
-        await updateDoc(doc(db, 'users', currentUser.uid, 'chats', currentChatId), {
-          title: (text || 'Imagem').slice(0, 40)
-        });
-        loadChats();
-      }
-
-      const typingId = addTyping();
-
-      try {
-        const isVercel = window.location.hostname !== '127.0.0.1' && window.location.hostname !== 'localhost';
-        const model = hasImage ? 'meta-llama/llama-4-scout-17b-16e-instruct' : 'llama-3.3-70b-versatile';
-        let data;
-
-        if (isVercel) {
-          const res = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ systemPrompt: window.currentSystemPrompt, messages: currentMessages, model })
-          });
-          data = await res.json();
-        } else {
-          const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
-            body: JSON.stringify({ model, messages: [{ role: 'system', content: window.currentSystemPrompt }, ...currentMessages] })
-          });
-          data = await res.json();
-        }
-        removeTyping(typingId);
-
-        if (data.choices && data.choices[0]) {
-          const reply = data.choices[0].message.content;
-          await addDoc(collection(db, 'users', currentUser.uid, 'chats', currentChatId, 'messages'), {
-            role: 'assistant', content: reply, createdAt: Date.now()
-          });
-          currentMessages.push({ role: 'assistant', content: reply });
-          appendBubble('bot', reply);
-        } else {
-          removeTyping(typingId);
-          appendBubble('bot', 'Erro: ' + (data.error?.message || 'Resposta inválida.'));
-        }
-      } catch(e) {
-        removeTyping(typingId);
-        appendBubble('bot', 'Erro ao conectar com a API.');
-      }
-    };
-
-    window.generateImage = async function() {
-      const input = document.getElementById('userInput');
-      const text = input.value.trim();
-      if (!text || !currentUser) return;
-      input.value = '';
-
-      if (!currentChatId) await newChat();
-
-      await addDoc(collection(db, 'users', currentUser.uid, 'chats', currentChatId, 'messages'), {
-        role: 'user', content: text, createdAt: Date.now()
-      });
-      currentMessages.push({ role: 'user', content: text });
-      appendBubble('user', text);
-
-      const typingId = addTyping();
-      const encoded = encodeURIComponent(text);
-      const imgUrl = `https://pollinations.ai/p/${encoded}?width=512&height=512&nologo=true&seed=${Date.now()}`;
-
-      try {
-        const togetherRes = await fetch('https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0/v1/images/generations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.HF_KEY}` },
-          body: JSON.stringify({ prompt: text, num_inference_steps: 20 })
-        });
-        const imgData = await togetherRes.json();
-        removeTyping(typingId);
-
-        if (imgData.data && imgData.data[0]) {
-          const imgUrl = imgData.data[0].url;
-          const reply = `<img src="${imgUrl}" style="max-width:100%;border-radius:12px;" />`;
-          await addDoc(collection(db, 'users', currentUser.uid, 'chats', currentChatId, 'messages'), {
-            role: 'assistant', content: reply, createdAt: Date.now()
-          });
-          currentMessages.push({ role: 'assistant', content: reply });
-          appendBubble('bot', reply);
-        } else {
-          appendBubble('bot', 'Erro ao gerar imagem: ' + (imgData.error?.message || JSON.stringify(imgData)));
-        }
-      } catch(e) {
-        removeTyping(typingId);
-        appendBubble('bot', 'Erro ao conectar com o gerador de imagens.');
-      }
-    };
-
     function addTyping() {
       const box = document.getElementById('chatBox');
       const id = 'typing-' + Date.now();
@@ -353,47 +177,93 @@
       return id;
     }
 
-    // CONTEXT MENU
-    let ctxChatId = null;
-    const ctxMenu = document.getElementById('contextMenu');
-
-    document.addEventListener('click', () => ctxMenu.classList.add('hidden'));
-
-    document.getElementById('ctxRename').onclick = async () => {
-      const newName = prompt('Novo nome do chat:');
-      if (!newName || !ctxChatId) return;
-      await updateDoc(doc(db, 'users', currentUser.uid, 'chats', ctxChatId), { title: newName });
-      loadChats();
-      ctxMenu.classList.add('hidden');
-    };
-
-    document.getElementById('ctxDelete').onclick = async () => {
-      if (!ctxChatId) return;
-      const { deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-      await deleteDoc(doc(db, 'users', currentUser.uid, 'chats', ctxChatId));
-      if (currentChatId === ctxChatId) {
-        currentChatId = null;
-        currentMessages = [];
-        renderChatBox([]);
-      }
-      loadChats();
-      ctxMenu.classList.add('hidden');
-    };
-
-    function showContextMenu(e, chatId) {
-      e.preventDefault();
-      ctxChatId = chatId;
-      ctxMenu.style.left = e.pageX + 'px';
-      ctxMenu.style.top = e.pageY + 'px';
-      ctxMenu.classList.remove('hidden');
-    }
-
     function removeTyping(id) {
       const el = document.getElementById(id);
       if (el) el.remove();
     }
-  </script>
 
+    window.sendMessage = async function() {
+      const input = document.getElementById('userInput');
+      const text = input.value.trim();
+      if (!text || !currentUser) return;
+      
+      input.value = '';
+      if (!currentChatId) await newChat();
+
+      await addDoc(collection(db, 'users', currentUser.uid, 'chats', currentChatId, 'messages'), {
+        role: 'user', content: text, createdAt: Date.now()
+      });
+      currentMessages.push({ role: 'user', content: text });
+      appendBubble('user', text);
+
+      const typingId = addTyping();
+
+      try {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json', 
+            'Authorization': `Bearer ${window.GROQ_KEY}` 
+          },
+          body: JSON.stringify({ 
+            model: 'llama-3.3-70b-versatile', 
+            messages: [{ role: 'system', content: window.currentSystemPrompt }, ...currentMessages] 
+          })
+        });
+        const data = await res.json();
+        removeTyping(typingId);
+
+        if (data.choices) {
+          const reply = data.choices[0].message.content;
+          await addDoc(collection(db, 'users', currentUser.uid, 'chats', currentChatId, 'messages'), {
+            role: 'assistant', content: reply, createdAt: Date.now()
+          });
+          currentMessages.push({ role: 'assistant', content: reply });
+          appendBubble('bot', reply);
+        }
+      } catch(e) {
+        removeTyping(typingId);
+        appendBubble('bot', 'Erro ao conectar. A escola pode estar bloqueando a API.');
+      }
+    };
+
+    window.generateImage = function() {
+      const input = document.getElementById('userInput');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      appendBubble('user', `Gerando imagem: ${text}`);
+      const typingId = addTyping();
+      const imgUrl = `https://pollinations.ai/p/${encodeURIComponent(text)}?width=512&height=512&nologo=true`;
+      setTimeout(() => {
+        removeTyping(typingId);
+        appendBubble('bot', `<img src="${imgUrl}" style="max-width:100%; border-radius:12px;">`);
+      }, 2000);
+    };
+
+    // CONTEXT MENU
+    let ctxChatId = null;
+    const ctxMenu = document.getElementById('contextMenu');
+    document.addEventListener('click', () => ctxMenu.classList.add('hidden'));
+    document.getElementById('ctxRename').onclick = async () => {
+      const n = prompt('Novo nome:');
+      if(n) {
+        await updateDoc(doc(db, 'users', currentUser.uid, 'chats', ctxChatId), {title: n});
+        loadChats();
+      }
+    };
+    document.getElementById('ctxDelete').onclick = async () => {
+      await deleteDoc(doc(db, 'users', currentUser.uid, 'chats', ctxChatId));
+      loadChats();
+    };
+    function showContextMenu(e, id) {
+      e.preventDefault();
+      ctxChatId = id;
+      ctxMenu.style.left = e.pageX + 'px';
+      ctxMenu.style.top = e.pageY + 'px';
+      ctxMenu.classList.remove('hidden');
+    }
+  </script>
   <script src="script.js"></script>
 </body>
 </html>
